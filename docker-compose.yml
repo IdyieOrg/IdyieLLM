@@ -1,0 +1,13 @@
+services:
+  api:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: idyie-llm-api
+    ports:
+      - "9090:9090"
+    environment:
+      FLASK_ENV: development
+    volumes:
+      - .:/app
+    command: python run.py

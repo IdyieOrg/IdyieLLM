@@ -1,0 +1,44 @@
+# Environnements virtuels
+venv/
+.venv/
+
+# Fichiers Python compilés
+__pycache__/
+*.py[cod]
+*.pyo
+*.pyd
+
+# Fichiers d'environnement et variables sensibles
+.env
+.env.*
+
+# Logs
+*.log
+logs/
+
+# Caches
+*.cache
+.cache/
+*.egg-info/
+.eggs/
+*.swp
+
+# Paquets installés
+site/
+lib/
+lib64/
+*.egg
+*.egg-info/
+dist/
+build/
+
+# Fichiers générés par l'IDE (ex. PyCharm, VSCode)
+.idea/
+.vscode/
+*.sublime-project
+*.sublime-workspace
+
+# Configurations système
+.DS_Store
+*.bak
+*.tmp
