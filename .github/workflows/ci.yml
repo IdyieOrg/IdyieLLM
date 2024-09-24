@@ -1,0 +1,45 @@
+name: Lint, Build, and Test
+
+on:
+  push:
+    branches:
+      - main
+  pull_request:
+    branches:
+      - main
+
+jobs:
+  build:
+    name: Build Docker Images
+    runs-on: ubuntu-latest
+    services:
+      docker:
+        image: docker:latest
+        options: --privileged
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v3
+
+      - name: Build Docker images
+        run: docker compose build
+
+  test:
+    name: Run unittest
+    runs-on: ubuntu-latest
+    needs: build
+    services:
+      docker:
+        image: docker:latest
+        options: --privileged
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v3
+
+      - name: Create Docker network
+        run: docker network create idyie-network || true
+
+      - name: Setup Docker Compose
+        run: docker compose up -d
+
+      - name: Run unittest
+        run: docker compose exec api python -m unittest
