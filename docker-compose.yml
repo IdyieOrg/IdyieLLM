@@ -5,9 +5,16 @@ services:
       dockerfile: Dockerfile
     container_name: idyie-llm-api
     ports:
-      - "9090:9090"
+      - "$PORT:$PORT"
     environment:
       FLASK_ENV: development
     volumes:
       - .:/app
     command: python run.py
+
+networks:
+  default:
+    driver: bridge
+  idyie-network:
+    external: true
+    name: idyie-network
