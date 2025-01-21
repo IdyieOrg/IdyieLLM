@@ -1,13 +1,15 @@
 services:
-  api:
+  application:
     build:
       context: .
       dockerfile: Dockerfile
-    container_name: idyie-llm-api
+    container_name: idyie-llm-application
     ports:
       - "$PORT:$PORT"
     environment:
-      FLASK_ENV: development
+      FLASK_ENV: $FLASK_ENV
+    networks:
+      - idyie-network
     volumes:
       - .:/app
     command: python run.py
