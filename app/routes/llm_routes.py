@@ -2,6 +2,8 @@ from flask import Blueprint, request, jsonify
 from transformers import AutoTokenizer, AutoModelForSeq2SeqLM
 import torch
 import re
+import os
+import requests
 
 llm_bp = Blueprint('llm', __name__)
 
@@ -47,19 +49,29 @@ def match_template(prompt):
     return None
 
 
+def get_schema_from_db():
+    """
+    Fetch schema from database
+    """
+
+    # get ip
+    api_ip = os.getenv('IDYIE_API_URL', "http://idyie-api-application:8080")
+    url = f"{api_ip}/api/v1/database/schema"
+
+    # get schema
+    response = requests.get(url)
+
+    if response.status_code != 200:
+        return None
+
+    return response.json()['schema']
+
+
 def generate_ml_sql(prompt):
     """
     Generate SQL using the ML model for complex queries
     """
-    schema = """
-        CREATE TABLE users (
-            id INTEGER PRIMARY KEY,
-            username TEXT,
-            email TEXT,
-            created_at TIMESTAMP,
-            active BOOLEAN
-        );
-    """
+    schema = get_schema_from_db()  # Fetch schema from database
 
     full_prompt = f"Schema: {schema}\nQuery: {prompt}\nSQL:"
 
@@ -128,6 +140,10 @@ def get_query():
             sql_query = generate_ml_sql(data['prompt'])
             sql_query = clean_sql(sql_query)
             source = "ml"
+
+        # Add ; at the end if missing
+        if not sql_query.endswith(";"):
+            sql_query += ";"
 
         return jsonify({
             'prompt': data['prompt'],

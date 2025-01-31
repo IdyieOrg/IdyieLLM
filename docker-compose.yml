@@ -8,6 +8,7 @@ services:
       - "$PORT:$PORT"
     environment:
       FLASK_ENV: $FLASK_ENV
+      IDYIE_API_URL: $IDYIE_API_URL
     networks:
       - idyie-network
     volumes:
