@@ -1,6 +1,7 @@
 # Environnements virtuels
 venv/
 .venv/
+.hf_cache/
 
 # Fichiers Python compilés
 __pycache__/

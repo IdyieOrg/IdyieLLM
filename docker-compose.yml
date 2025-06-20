@@ -13,6 +13,7 @@ services:
       - idyie-network
     volumes:
       - .:/app
+      - ./.hf_cache:/root/.cache/huggingface
     command: python run.py
 
 networks:
