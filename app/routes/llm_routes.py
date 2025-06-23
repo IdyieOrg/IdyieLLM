@@ -1,6 +1,6 @@
 from flask import Blueprint, request, jsonify
 from transformers import AutoTokenizer, AutoModelForSeq2SeqLM
-import torch
+# import torch
 import re
 import os
 import requests
@@ -27,6 +27,7 @@ schema_cache = {
 CACHE_TTL_SECONDS = 300  # 5 minutes
 
 STRICT_MODE = True  # fail hard if hallucination detected
+
 
 def get_schema_from_db():
     global schema_cache
@@ -55,6 +56,7 @@ def get_schema_from_db():
         logger.error("Failed to fetch schema: %s", e)
         raise RuntimeError("Could not retrieve database schema") from e
 
+
 def convert_schema_to_prompt(raw_schema_text):
     schema_lines = []
     parsed_schema = {}
@@ -76,6 +78,7 @@ def convert_schema_to_prompt(raw_schema_text):
 
     return "\n".join(schema_lines), parsed_schema
 
+
 def simplify_sql_type(sql_type):
     sql_type = sql_type.lower()
     if "tinyint" in sql_type:
@@ -89,14 +92,17 @@ def simplify_sql_type(sql_type):
     else:
         return "text"
 
+
 def build_few_shot_prompt(parsed_schema, user_prompt):
     examples = []
     variants = [
         ("active", [
-            "Get active {table}", "Get all active {table}", "Show active {table}", "List active {table}", "Retrieve active {table}"
+            "Get active {table}", "Get all active {table}", "Show active {table}", "List active {table}",
+            "Retrieve active {table}"
         ]),
         ("inactive", [
-            "Get inactive {table}", "Get all inactive {table}", "Show inactive {table}", "List inactive {table}", "Retrieve inactive {table}"
+            "Get inactive {table}", "Get all inactive {table}", "Show inactive {table}", "List inactive {table}",
+            "Retrieve inactive {table}"
         ])
     ]
 
@@ -117,9 +123,11 @@ def build_few_shot_prompt(parsed_schema, user_prompt):
     few_shot_text = "\n".join(examples)
 
     prompt = (
-        "You are a professional data engineer. Generate valid SQL queries based strictly on the provided schema. "
-        "Only use tables and columns that exist. Do not invent any fields or tables. Always return clean SQL starting with SELECT.\n\n"
-        f"Schema:\n"
+        "You are a professional data engineer. Generate valid SQL queries based strictly on the provided schema."
+        "Only use tables and columns that exist. "
+        "Do not invent any fields or tables. "
+        "Always return clean SQL starting with SELECT.\n\n"
+        "Schema:\n"
     )
 
     for table, columns in parsed_schema.items():
@@ -128,6 +136,7 @@ def build_few_shot_prompt(parsed_schema, user_prompt):
 
     prompt += f"\n{few_shot_text}\n\nUser query: {user_prompt}\nSQL:"
     return prompt
+
 
 def generate_sql_with_llm(user_prompt, schema_text, parsed_schema):
     full_prompt = build_few_shot_prompt(parsed_schema, user_prompt)
@@ -155,6 +164,7 @@ def generate_sql_with_llm(user_prompt, schema_text, parsed_schema):
     logger.info("Raw model output: %s", sql)
     return sql
 
+
 def clean_sql(sql):
     sql = re.sub(r'(?i)(FROM|JOIN)\s+t\d+\.', r'\1 ', sql)
     sql = sql.replace("active = 'T'", "active = TRUE")
@@ -164,6 +174,7 @@ def clean_sql(sql):
     sql = sql.replace("active = '0'", "active = FALSE")
     sql = sql.replace("active = 0", "active = FALSE")
     return sql.strip()
+
 
 def validate_sql(sql, parsed_schema):
     if not sql.upper().startswith("SELECT"):
@@ -179,6 +190,7 @@ def validate_sql(sql, parsed_schema):
         logger.warning("Unknown tables detected in SQL: %s", unknown_tables)
         if STRICT_MODE:
             raise ValueError(f"Unknown tables in SQL: {unknown_tables}")
+
 
 @llm_bp.route('/api/get_query', methods=['POST'])
 def get_query():
