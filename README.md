@@ -6,8 +6,7 @@
 **IdyieLLM**
 
 ### Description
-IdyieLLM is the IA model that powers the Idyie solution. It is designed to transform human
-prompts into database queries, enabling users to interact with their data in a natural language format.
+IdyieLLM is the IA model that powers the Idyie solution. It is designed to transform human prompts into database queries, enabling users to interact with their data in a natural language format.
 
 ### Main technologies
 - Python
@@ -42,7 +41,7 @@ cp .env.example .env
 ```
 ### 3.3 Launch the application locally
 ```bash
-docker-compose build
+docker compose build
 docker compose up -d; docker attach idyie-llm-application
 ```
 
@@ -82,9 +81,9 @@ docker compose up -d; docker attach idyie-llm-application
 A ```.env.example``` file is provided to configure the required variables:
 ```bash
 # Application
-IDYIE_API_URL=http://idyie-api-application:8080
-FLASK_ENV=development
-PORT=9090
+IDYIE_API_URL=
+FLASK_ENV=
+PORT=
 ```
 The variables are used to configure the Docker container
 
