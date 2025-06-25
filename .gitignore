@@ -12,6 +12,7 @@ __pycache__/
 # Fichiers d'environnement et variables sensibles
 .env
 .env.*
+!.env.example
 
 # Logs
 *.log
