@@ -13,6 +13,7 @@ logger = logging.getLogger("idyie-llm")
 llm_bp = Blueprint('llm', __name__)
 
 MODEL_NAME = "tscholak/3vnuv1vf"
+# MODEL_NAME = "tscholak/cxmefzzi"
 logger.info("Loading model: %s", MODEL_NAME)
 tokenizer = AutoTokenizer.from_pretrained(MODEL_NAME)
 model = AutoModelForSeq2SeqLM.from_pretrained(MODEL_NAME)
@@ -123,9 +124,11 @@ def build_few_shot_prompt(parsed_schema, user_prompt):
     few_shot_text = "\n".join(examples)
 
     prompt = (
-        "You are a professional data engineer. Generate valid SQL queries based strictly on the provided schema."
-        "Only use tables and columns that exist. "
-        "Do not invent any fields or tables. "
+        "You are a senior SQL engineer. Generate valid SQL queries based strictly on the provided schema."
+        "Never invent table or column names."
+        # "You are a professional data engineer. Generate valid SQL queries based strictly on the provided schema."
+        # "Only use tables and columns that exist. "
+        # "Do not invent any fields or tables. "
         "Always return clean SQL starting with SELECT.\n\n"
         "Schema:\n"
     )
