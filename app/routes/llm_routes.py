@@ -124,7 +124,7 @@ def build_few_shot_prompt(parsed_schema, user_prompt):
     few_shot_text = "\n".join(examples)
 
     prompt = (
-        "You are a senior SQL engineer. Generate valid SQL queries based strictly on the provided schema."
+        "You are a senior SQL engineer. Generate valid SQL queries strictly based on the provided schema."
         "Never invent table or column names."
         # "You are a professional data engineer. Generate valid SQL queries based strictly on the provided schema."
         # "Only use tables and columns that exist. "
