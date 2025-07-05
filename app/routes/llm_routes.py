@@ -1,5 +1,9 @@
 from flask import Blueprint, request, jsonify
-from transformers import AutoTokenizer, AutoModelForSeq2SeqLM
+# for seq2seq models (tscholak/3vnuv1vf, tscholak/cxmefzzi)
+# from transformers import AutoTokenizer, AutoModelForSeq2SeqLM
+# For the SQLCoder model (defog/sqlcoder-7b-2)
+from transformers import AutoTokenizer, AutoModelForCausalLM
+
 # import torch
 import re
 import os
@@ -12,11 +16,16 @@ logger = logging.getLogger("idyie-llm")
 
 llm_bp = Blueprint('llm', __name__)
 
-MODEL_NAME = "tscholak/3vnuv1vf"
+# MODEL_NAME = "tscholak/3vnuv1vf"
 # MODEL_NAME = "tscholak/cxmefzzi"
+MODEL_NAME = "defog/sqlcoder-7b-2"
 logger.info("Loading model: %s", MODEL_NAME)
 tokenizer = AutoTokenizer.from_pretrained(MODEL_NAME)
-model = AutoModelForSeq2SeqLM.from_pretrained(MODEL_NAME)
+# for seq2seq models (tscholak/3vnuv1vf, tscholak/cxmefzzi)
+# model = AutoModelForSeq2SeqLM.from_pretrained(MODEL_NAME)
+
+# For the SQLCoder model (defog/sqlcoder-7b-2)
+model = AutoModelForCausalLM.from_pretrained(MODEL_NAME, torch_dtype="auto", device_map="auto")
 logger.info("Model loaded successfully.")
 
 # Simple in-memory cache
@@ -144,26 +153,41 @@ def build_few_shot_prompt(parsed_schema, user_prompt):
 def generate_sql_with_llm(user_prompt, schema_text, parsed_schema):
     full_prompt = build_few_shot_prompt(parsed_schema, user_prompt)
 
-    logger.info("Full prompt:\n%s", full_prompt)
+# For tscholak/3vnuv1vf and tscholak/cxmefzzi models, uncomment the following lines:
+    # logger.info("Full prompt:\n%s", full_prompt)
 
-    inputs = tokenizer(
-        full_prompt,
-        max_length=1024,
-        padding=True,
-        truncation=True,
-        return_tensors="pt"
-    )
+    # inputs = tokenizer(
+    #     full_prompt,
+    #     max_length=1024,
+    #     padding=True,
+    #     truncation=True,
+    #     return_tensors="pt"
+    # )
+
+    # outputs = model.generate(
+    #     inputs["input_ids"],
+    #     max_length=256,
+    #     min_length=5,
+    #     num_beams=5,
+    #     do_sample=False,
+    #     early_stopping=True,
+    # )
+
+    # sql = tokenizer.decode(outputs[0], skip_special_tokens=True).strip()
+
+# For defog/sqlcoder-7b-2 model, use the following lines:
+    inputs = tokenizer(full_prompt, return_tensors="pt", truncation=True).to(model.device)
 
     outputs = model.generate(
         inputs["input_ids"],
-        max_length=256,
-        min_length=5,
+        max_new_tokens=256,
         num_beams=5,
         do_sample=False,
-        early_stopping=True,
+        early_stopping=True
     )
 
     sql = tokenizer.decode(outputs[0], skip_special_tokens=True).strip()
+
     logger.info("Raw model output: %s", sql)
     return sql
 

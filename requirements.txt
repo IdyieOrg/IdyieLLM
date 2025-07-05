@@ -3,3 +3,4 @@ python-dotenv==1.0.1
 flake8==7.1.1
 torch==2.5.1
 transformers==4.48.0
+accelerate==0.26.0 # For distributed training
