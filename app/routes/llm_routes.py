@@ -135,6 +135,7 @@ def build_few_shot_prompt(parsed_schema, user_prompt):
     prompt = (
         "You are a senior SQL engineer. Generate valid SQL queries strictly based on the provided schema."
         "Never invent table or column names."
+        "You are working with MariaDB/MySQL database, so use the appropriate SQL syntax."
         # "You are a professional data engineer. Generate valid SQL queries based strictly on the provided schema."
         # "Only use tables and columns that exist. "
         # "Do not invent any fields or tables. "
@@ -176,36 +177,44 @@ def generate_sql_with_llm(user_prompt, schema_text, parsed_schema):
     # sql = tokenizer.decode(outputs[0], skip_special_tokens=True).strip()
 
 # For defog/sqlcoder-7b-2 model, use the following lines:
-    inputs = tokenizer(full_prompt, return_tensors="pt", truncation=True).to(model.device)
+    inputs = tokenizer(full_prompt, return_tensors="pt", truncation=True, max_length=1024).to(model.device)
 
     outputs = model.generate(
         inputs["input_ids"],
+        attention_mask=inputs["attention_mask"],
         max_new_tokens=256,
         num_beams=5,
         do_sample=False,
-        early_stopping=True
+        early_stopping=True,
+        pad_token_id=tokenizer.eos_token_id
     )
 
     sql = tokenizer.decode(outputs[0], skip_special_tokens=True).strip()
+    sql = sql.split('\n')[-1].strip()
 
     logger.info("Raw model output: %s", sql)
     return sql
 
 
 def clean_sql(sql):
+    if sql.startswith("SQL: "):
+        sql = sql[len("SQL: "):].strip()
     sql = re.sub(r'(?i)(FROM|JOIN)\s+t\d+\.', r'\1 ', sql)
-    sql = sql.replace("active = 'T'", "active = TRUE")
-    sql = sql.replace("active = 'F'", "active = FALSE")
-    sql = sql.replace("active = '1'", "active = TRUE")
-    sql = sql.replace("active = 1", "active = TRUE")
-    sql = sql.replace("active = '0'", "active = FALSE")
-    sql = sql.replace("active = 0", "active = FALSE")
+    sql = sql.replace("= 'T'", "= TRUE")
+    sql = sql.replace("= 'F'", "= FALSE")
+    sql = sql.replace("= '1'", "= TRUE")
+    sql = sql.replace("= 1", "= TRUE")
+    sql = sql.replace("= '0'", "= FALSE")
+    sql = sql.replace("= 0", "= FALSE")
     return sql.strip()
 
 
 def validate_sql(sql, parsed_schema):
     if not sql.upper().startswith("SELECT"):
-        raise ValueError("Generated SQL does not start with SELECT")
+        err = (
+            f"Generated SQL does not start with SELECT: {sql}\n"
+        )
+        raise ValueError(err)
 
     used_tables = set(re.findall(r'FROM\s+(\w+)', sql, re.IGNORECASE))
     used_tables.update(re.findall(r'JOIN\s+(\w+)', sql, re.IGNORECASE))
