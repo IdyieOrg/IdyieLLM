@@ -71,15 +71,15 @@ def convert_schema_to_prompt(raw_schema_text):
     schema_lines = []
     parsed_schema = {}
 
-    tables = re.findall(r'CREATE TABLE `(\w+)` \((.*?)\) ENGINE=', raw_schema_text, re.DOTALL)
+    tables = re.findall(r'CREATE TABLE `([\w_]+)` \((.*?)\) ENGINE=', raw_schema_text, re.DOTALL)
     for table_name, columns_raw in tables:
         columns = []
         parsed_schema[table_name] = []
         for line in columns_raw.strip().split("\n"):
             line = line.strip().strip(',')
-            col_match = re.match(r'`(\w+)`\s+([a-zA-Z0-9()]+)', line)
+            col_match = re.match(r'`([\w\s]+)`\s+([a-zA-Z0-9()]+)', line)
             if col_match:
-                col_name = col_match.group(1)
+                col_name = col_match.group(1).strip()
                 col_type = simplify_sql_type(col_match.group(2))
                 columns.append(f"{col_name} {col_type}")
                 parsed_schema[table_name].append((col_name, col_type))
@@ -151,8 +151,8 @@ def build_few_shot_prompt(parsed_schema, user_prompt):
     return prompt
 
 
-def generate_sql_with_llm(user_prompt, schema_text, parsed_schema):
-    full_prompt = build_few_shot_prompt(parsed_schema, user_prompt)
+# def generate_sql_with_llm(user_prompt, schema_text, parsed_schema):
+#     full_prompt = build_few_shot_prompt(parsed_schema, user_prompt)
 
 # For tscholak/3vnuv1vf and tscholak/cxmefzzi models, uncomment the following lines:
     # logger.info("Full prompt:\n%s", full_prompt)
@@ -177,10 +177,40 @@ def generate_sql_with_llm(user_prompt, schema_text, parsed_schema):
     # sql = tokenizer.decode(outputs[0], skip_special_tokens=True).strip()
 
 # For defog/sqlcoder-7b-2 model, use the following lines:
-    inputs = tokenizer(full_prompt, return_tensors="pt", truncation=True, max_length=1024).to(model.device)
+    # inputs = tokenizer(full_prompt, return_tensors="pt", truncation=True, max_length=1024).to(model.device)
+
+def generate_sql_with_llm(user_prompt, schema_text, parsed_schema):
+    full_prompt = build_few_shot_prompt(parsed_schema, user_prompt)
+
+    logger.info("🧠 Prompt prêt, encodage des entrées...")
+    inputs = tokenizer(
+        full_prompt,
+        return_tensors="pt",
+        truncation=True,
+        max_length=1024
+    ).to(model.device)
+
+    logger.info("🧠 Verifying model and tensor devices...")
+    logger.info("🧠 Model device: %s", model.device)
+
+    for key, tensor in inputs.items():
+        logger.info("🧠 Tensor '%s' device before adjustment: %s", key, tensor.device)
+        if tensor.device != model.device:
+            logger.warning("Tensor '%s' is not on the same device as the model. Moving it to the model's device.", key)
+            inputs[key] = tensor.to(model.device)
+
+    logger.info("🧠 Tensor devices after adjustment:")
+    for key, tensor in inputs.items():
+        logger.info("🧠 Tensor '%s' device: %s", key, tensor.device)
+
+    logger.info("🧠 Full prompt: %s", full_prompt)
+    logger.info("🧠 Tokenized inputs: %s", inputs)
+
+    logger.info("🚀 Génération de la requête SQL par le modèle...")
+    start_time = time.time()
 
     outputs = model.generate(
-        inputs["input_ids"],
+        input_ids=inputs["input_ids"],
         attention_mask=inputs["attention_mask"],
         max_new_tokens=256,
         num_beams=5,
@@ -189,11 +219,15 @@ def generate_sql_with_llm(user_prompt, schema_text, parsed_schema):
         pad_token_id=tokenizer.eos_token_id
     )
 
-    sql = tokenizer.decode(outputs[0], skip_special_tokens=True).strip()
-    sql = sql.split('\n')[-1].strip()
+    duration = time.time() - start_time
+    logger.info("✅ Génération terminée en %.2f secondes", duration)
+    logger.info("🧾 Raw model outputs: %s", outputs)
 
-    logger.info("Raw model output: %s", sql)
-    return sql
+    sql = tokenizer.decode(outputs[0], skip_special_tokens=True).strip()
+    sql_line = sql.split('\n')[-1].strip()
+
+    logger.info("🧾 Final decoded SQL: %s", sql_line)
+    return sql_line
 
 
 def clean_sql(sql):
@@ -228,6 +262,9 @@ def validate_sql(sql, parsed_schema):
             raise ValueError(f"Unknown tables in SQL: {unknown_tables}")
 
 
+# Simple in-memory cache for prompts
+prompt_cache = {}
+
 @llm_bp.route('/api/get_query', methods=['POST'])
 def get_query():
     data = request.get_json()
@@ -236,6 +273,11 @@ def get_query():
 
     prompt = data['prompt']
     logger.info("Received prompt: %s", prompt)
+
+    # Check if the prompt result is already cached
+    if prompt in prompt_cache:
+        logger.info("Returning cached result for prompt: %s", prompt)
+        return jsonify(prompt_cache[prompt])
 
     try:
         schema_text, parsed_schema = get_schema_from_db()
@@ -247,11 +289,16 @@ def get_query():
 
         logger.info("Validated SQL: %s", cleaned_sql)
 
-        return jsonify({
+        response = {
             'prompt': prompt,
             'sql_query': cleaned_sql,
             'source': 'llm'
-        })
+        }
+
+        # Cache the result
+        prompt_cache[prompt] = response
+
+        return jsonify(response)
 
     except Exception as e:
         logger.exception("Error processing prompt")
